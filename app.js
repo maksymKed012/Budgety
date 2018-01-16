@@ -161,6 +161,11 @@ var BudgetViewController = (function () {
             document.querySelector(element).insertAdjacentHTML('beforeEnd', html); 
         },
 
+        removeListItem : function(selectorID) {
+            var elementToRemove = document.getElementById(selectorID);
+            elementToRemove.parentNode.removeChild(elementToRemove);
+        },
+
         clearFields : function() {
              
            var fields = document.querySelectorAll(DOMStrings.inputDescription + ', ' + DOMStrings.inputValue);
@@ -222,6 +227,7 @@ var BudgetController = (function (BudgetDataModel, BudgetViewController) {
                 BudgetViewController.addListItem(transaction, transaction.type);
                 BudgetViewController.clearFields();
                 updateBudget();
+                updateBudgetPercentages();
                 console.log(budgetEntry);
             }
         },
@@ -229,12 +235,18 @@ var BudgetController = (function (BudgetDataModel, BudgetViewController) {
         deleteBudgetEntry : function (event) {
             var itemID = event.target.parentNode.parentNode.parentNode.parentNode.id;
             var itemSplit = itemID.split('-');
-            var itemID = itemSplit[1];
+            var itemIDNum = itemSplit[1];
             var itemType = itemSplit[0];
 
-            BudgetDataModel.deleteTransaction(parseInt(itemID));
+            BudgetDataModel.deleteTransaction(parseInt(itemIDNum));
+            BudgetViewController.removeListItem(itemID);
             
             updateBudget();
+            updateBudgetPercentages();
+        },
+
+        updateBudgetPercentages : function() {
+
         }
     };
 
