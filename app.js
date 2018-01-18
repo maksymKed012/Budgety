@@ -13,10 +13,15 @@ var BudgetDataModel = (function () {
         this.id  = id;
         this.description = description;
         this.value = value;
+        this.percentage = -1;
     }
 
-    Transaction.prototype = function() {
-
+    Transaction.prototype.calculatePercentage = function(totalIncome) {
+        if(totalIncome > 0){
+            this.percentage = Math.round((this.value / totalIncome) * 100);    
+        } else {
+            this.percentage = -1;
+        }
     }
 
 
@@ -89,7 +94,8 @@ var BudgetViewController = (function () {
         incomeLabel : '.budget__income--value',
         expenseLabel : '.budget__expenses--value',
         percentageLabel : '.budget__expenses--percentage',
-        container : '.container'
+        container : '.container',
+        expensesPercentageLabel : '.item__percentage'
     };
 
     var onKeyDown = function (event) {
@@ -118,7 +124,20 @@ var BudgetViewController = (function () {
         }
     }
 
-    
+    var formatNumber = function (number, transType) {
+        number = Math.abs(number);
+        number = number.toFixed(2);
+
+        var numSplit = number.split('.');
+        var intPart = numSplit[0];
+        var decPart = numSplit[1];
+
+        if(intPart.length > 3) {
+            intPart = intPart.substr(0, intPart.length - 3) + ',' + intPart.substr(intPart.length - 3, intPart.length);
+        }
+
+        return (transType === TransactionType.EXPENSE ? '-' : '+') + ' ' + intPart + '.' + decPart;
+    };
 
 
     return {
@@ -155,7 +174,7 @@ var BudgetViewController = (function () {
             var element = transaction === TransactionType.INCOME ? DOMStrings.incomesContainer : DOMStrings.expensesContainer;
             var html = getHTMLForTransaction(transaction);
             html = html.replace('%id%', object.id);
-            html = html.replace('%value%', object.value);
+            html = html.replace('%value%', formatNumber(object.value, transaction));
             html = html.replace('%description%', object.description);
 
             document.querySelector(element).insertAdjacentHTML('beforeEnd', html); 
@@ -181,11 +200,29 @@ var BudgetViewController = (function () {
 
         displayBudget : function (obj) {
             
-            document.querySelector(DOMStrings.budgetLabel).textContent = obj.budget;
-            document.querySelector(DOMStrings.incomeLabel).textContent = obj.income;
-            document.querySelector(DOMStrings.expenseLabel).textContent = obj.expenses;
+            document.querySelector(DOMStrings.budgetLabel).textContent = formatNumber(obj.budget, obj.budget >= 0 ? 0 : 1);
+            document.querySelector(DOMStrings.incomeLabel).textContent = formatNumber(obj.income, 0);
+            document.querySelector(DOMStrings.expenseLabel).textContent = formatNumber(obj.expenses, 1);
             document.querySelector(DOMStrings.percentageLabel).textContent = obj.percentage > 0 ? 
             obj.percentage : '---';
+        },
+
+        displayPercentages : function(percentages) {
+            var items = document.querySelectorAll(DOMStrings.expensesPercentageLabel);
+
+            var nodeListForEach = function (nodeList, callback) {
+                for(var i = 0; i < nodeList.length; ++i) {
+                    callback(nodeList[i], i);
+                }
+            }
+
+            nodeListForEach(items, function (current, index){
+                if(percentages[index] > 0) {
+                    current.textContent = percentages[index] + '%';
+                } else {
+                    current.textContent = '---';
+                }
+            });
         }
     }
 
@@ -207,6 +244,22 @@ var BudgetController = (function (BudgetDataModel, BudgetViewController) {
 
         BudgetViewController.displayBudget(budgetObj);
     };
+       
+    var updateBudgetPercentages = function() {
+            var totalIncome = BudgetDataModel.calculateTotal(TransactionType.INCOME);
+            BudgetDataModel.getAllTransactionsByType(TransactionType.EXPENSE).forEach(function(current){
+                current.calculatePercentage(totalIncome);
+            });
+            var percentages = getPercentages();
+            BudgetViewController.displayPercentages(percentages);
+        };
+
+    var getPercentages = function() {
+            var retArr = BudgetDataModel.getAllTransactionsByType(TransactionType.EXPENSE).map(function (current){
+                return current.percentage;
+            });
+            return retArr;
+        };
 
     return {
         init : function () {
@@ -243,10 +296,6 @@ var BudgetController = (function (BudgetDataModel, BudgetViewController) {
             
             updateBudget();
             updateBudgetPercentages();
-        },
-
-        updateBudgetPercentages : function() {
-
         }
     };
 
